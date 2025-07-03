@@ -155,12 +155,3 @@ jobs:
           }
       env:
         SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-        
-    - name: Upload summary as artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: pr-summary-${{ github.run_number }}
-        path: |
-          pr_summary.json
-          summary.md
-        retention-days: 30 
