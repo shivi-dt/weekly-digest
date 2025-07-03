@@ -43,27 +43,28 @@ jobs:
         python github_pr_analyzer.py DrivetrainAi/drive \
           --time-range "$TIME_RANGE" \
           --branches $BRANCHES \
-          --output-format json \
-          --output-file pr_summary.json
+          --output pr_summary.md
         
         # Extract summary and stats
         python -c "
-        import json
         import os
         
-        with open('pr_summary.json', 'r') as f:
-            data = json.load(f)
+        # Read the markdown summary
+        with open('pr_summary.md', 'r') as f:
+            summary = f.read()
         
-        summary = data.get('summary', 'No summary generated')
-        stats = data.get('statistics', {})
+        # Count PRs by looking for PR numbers in the summary
+        import re
+        pr_matches = re.findall(r'#(\d+)', summary)
+        pr_count = len(set(pr_matches))  # Unique PR numbers
         
-        # Save summary to file
-        with open('summary.md', 'w') as f:
-            f.write(summary)
+        # Truncate summary if too long for Slack
+        if len(summary) > 3000:
+            summary = summary[:3000] + '...'
         
         # Set outputs for GitHub Actions
-        print(f'::set-output name=summary::{summary[:1000]}...' if len(summary) > 1000 else f'::set-output name=summary::{summary}')
-        print(f'::set-output name=pr_count::{stats.get(\"total_prs\", 0)}')
+        print(f'::set-output name=summary::{summary}')
+        print(f'::set-output name=pr_count::{pr_count}')
         print(f'::set-output name=time_range::{os.environ.get(\"TIME_RANGE\", \"1w\")}')
         "
         
@@ -99,7 +100,7 @@ jobs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "```${{ steps.generate_summary.outputs.summary }}```"
+                  "text": "${{ steps.generate_summary.outputs.summary }}"
                 }
               },
               {
