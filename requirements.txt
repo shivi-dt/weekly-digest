@@ -1,2 +1,12 @@
-requests>=2.25.1
-openai>=1.0.0 
+# Core HTTP and API libraries
+requests>=2.31.0,<3.0.0
+openai>=1.0.0,<2.0.0
+
+# GitHub API client
+PyGithub>=2.0.0,<3.0.0
+
+# Token counting for chunked summarizer
+tiktoken>=0.9.0,<1.0.0
+
+# Optional: For enhanced Linear integration
+# No additional dependencies needed - uses requests for Linear GraphQL API 
