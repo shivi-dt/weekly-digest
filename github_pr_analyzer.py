@@ -448,7 +448,7 @@ class GitHubPRAnalyzer:
         # Extract PR numbers from summary
         pr_numbers = re.findall(r'#(\d+)', summary)
         
-        # Create PR links
+        # Create PR links (just PR numbers as custom links)
         pr_links = []
         for pr_num in pr_numbers:
             pr_link = f"<https://github.com/{repo}/pull/{pr_num}|#{pr_num}>"
@@ -477,24 +477,36 @@ class GitHubPRAnalyzer:
 
 This is our weekly development roundup - make it engaging and fun to read while highlighting the impact.
 
-Structure the digest with these exciting sections:
+Structure the digest with these exciting sections with these headings in Bold Lettters:
 
-1. **📊 This Week's Highlights** - A punchy 2-3 sentence overview of what we accomplished
-2. **🚀 What's New** - Fresh features that users will love (1-2 items max)
-3. **⚡ Level Up** - Cool improvements that make things better (2-3 items max)
-4. **🐛 Bug Squashed** - Issues we conquered (2-3 items max)
-5. **🔧 Behind the Scenes** - Technical wins that keep things running smoothly (1-2 items max)
-6. **👥 MVP Contributors** - Shoutout to the rockstars who made it happen (top 3-4)
+1. ## 📊 This Week's Highlights - A punchy 2-3 sentence overview of what we accomplished
+2. ## 🚀 What's New - Fresh features that users will love (1-2 items max)
+3. ## ⚡ Level Up - Cool improvements that make things better (2-3 items max)
+4. ## 🐛 Bug Squashed - Issues we conquered (2-3 items max)
+5. ## 🔧 Behind the Scenes - Technical wins that keep things running smoothly (1-2 items max)
+6. ## 👥 MVP Contributors - Shoutout to the rockstars who made it happen (top 3-4)
 
 Make it:
-- 🎉 Exciting and celebratory tone
-- 📝 Concise but impactful (under 200 words)
-- 🎯 Focus on user benefits and business wins
+- 🎉 Exciting and celebratory tone with technical precision
+- 📝 Concise but impactful (under 250 words)
+- 🎯 Focus on user benefits, business wins, and technical achievements
 - 🔗 Include PR links for easy reference
-- 💪 Use action words and positive language
-- 🏆 Highlight achievements and progress
+- 💪 Use action words, positive language, and technical terminology
+- 🏆 Highlight achievements, performance improvements, and system enhancements
+- 📏 Add a blank line between each section for better readability
+- 🔬 Include relevant technical details (APIs, databases, performance metrics, etc.)
+- 📊 Mention specific improvements (latency reduction, throughput increase, etc.)
+- 🛡️ Reference security, scalability, or reliability improvements where applicable
 
 Think of this as a weekly newsletter that gets the team pumped about what we built!
+
+Technical Enhancement Tips:
+- Mention specific performance improvements (e.g., "reduced API response time by 40%")
+- Reference database optimizations, caching improvements, or scalability enhancements
+- Include security updates, authentication improvements, or compliance changes
+- Highlight API versioning, endpoint additions, or integration improvements
+- Mention monitoring, logging, or observability enhancements
+- Reference infrastructure improvements, deployment optimizations, or CI/CD changes
 
 PR Details:
 """
@@ -504,21 +516,6 @@ PR Details:
             for pr in branch_prs[:8]:  # Top 8 per branch for better categorization
                 author = pr.get('user', {}).get('login', 'unknown') if isinstance(pr.get('user'), dict) else 'unknown'
                 prompt += f"- #{pr['number']}: {pr['title']} (by {author})\n"
-                
-                # Add Linear context if available
-                linear_details = pr.get('linear_details')
-                if linear_details:
-                    linear_title = linear_details.get('title', '') or ''
-                    linear_description = linear_details.get('description', '') or ''
-                    linear_priority = linear_details.get('priority', '') or ''
-                    
-                    if linear_title and linear_title != pr['title']:
-                        prompt += f"  Issue: {linear_title}\n"
-                    if linear_description:
-                        desc_preview = linear_description[:150] + "..." if len(linear_description) > 150 else linear_description
-                        prompt += f"  Context: {desc_preview}\n"
-                    if linear_priority in ['Urgent', 'High']:
-                        prompt += f"  Priority: {linear_priority}\n"
             
             if len(branch_prs) > 8:
                 prompt += f"- ... and {len(branch_prs) - 8} more\n"
@@ -709,7 +706,7 @@ Analyze the PR titles and descriptions to categorize them properly. Focus on wha
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an enthusiastic technical writer creating exciting weekly development digests. Use a celebratory, engaging tone that gets teams pumped about their achievements. Focus on user impact and business wins. Keep it concise (under 200 words) but make it fun to read. Use action words, positive language, and highlight team accomplishments. Think of this as a weekly newsletter that celebrates what we built!"
+                        "content": "You are an enthusiastic technical writer creating exciting weekly development digests. Use a celebratory, engaging tone with technical precision that gets teams pumped about their achievements. Focus on user impact, business wins, and technical excellence. Keep it concise (under 250 words) but make it fun to read and technically informative. Use action words, positive language, technical terminology, and highlight team accomplishments. Include relevant technical details like performance improvements, API enhancements, database optimizations, security updates, and scalability improvements. Think of this as a professional weekly newsletter that celebrates technical achievements while being accessible to both technical and non-technical stakeholders."
                     },
                     {
                         "role": "user",
@@ -797,12 +794,14 @@ class SlackClient:
         # Convert markdown to Slack formatting
         formatted = markdown_text
         
-        # Headers - use bold with emojis
+        # Headers - use bold with emojis (convert to Slack bold format)
         formatted = re.sub(r'^# (.+)$', r'*📊 \1*', formatted, flags=re.MULTILINE)
         formatted = re.sub(r'^## (.+)$', r'*\1*', formatted, flags=re.MULTILINE)
         formatted = re.sub(r'^### (.+)$', r'*\1*', formatted, flags=re.MULTILINE)
         
-        # Bold text - convert **text** to *text*
+
+        
+        # Bold text - convert **text** to *text* (Slack uses * for bold)
         formatted = re.sub(r'\*\*(.+?)\*\*', r'*\1*', formatted)
         
         # Italic text - convert *text* to _text_ (but not if it's already bold)
@@ -818,8 +817,18 @@ class SlackClient:
         formatted = re.sub(r'^- (.+)$', r'• \1', formatted, flags=re.MULTILINE)
         formatted = re.sub(r'^\d+\. (.+)$', r'• \1', formatted, flags=re.MULTILINE)
         
-        # Links - convert markdown links to Slack format
+        # Links - convert markdown links to Slack format (but preserve existing custom links)
+        # First, temporarily replace existing custom links to protect them
+        custom_links = re.findall(r'<https://[^>]+>', formatted)
+        for i, link in enumerate(custom_links):
+            formatted = formatted.replace(link, f'__CUSTOM_LINK_{i}__')
+        
+        # Convert markdown links to Slack format
         formatted = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<\2|\1>', formatted)
+        
+        # Restore custom links
+        for i, link in enumerate(custom_links):
+            formatted = formatted.replace(f'__CUSTOM_LINK_{i}__', link)
         
         # Clean up emoji codes and replace with actual emojis
         formatted = re.sub(r':bar_chart:', '📊', formatted)
@@ -842,9 +851,6 @@ class SlackClient:
         """Create properly formatted Slack blocks."""
         # Format the summary for Slack
         formatted_summary = self.format_for_slack(summary)
-        
-        # Split into sections
-        sections = formatted_summary.split('\n\n')
         
         blocks = [
             {
@@ -869,13 +875,63 @@ class SlackClient:
             }
         ]
         
-        # Add the main summary content
-        if formatted_summary.strip():
+        # Split the summary into sections and create blocks for each
+        sections = formatted_summary.split('\n\n')
+        current_section_text = ""
+        
+        for section in sections:
+            section = section.strip()
+            if not section:
+                continue
+                
+            # Check if this is a section header (more flexible matching)
+            # Remove formatting and check for header content
+            section_clean = section.replace('*', '').replace('#', '').strip()
+            if any(header in section_clean for header in [
+                "📊 This Week's Highlights",
+                "🚀 What's New", 
+                "⚡ Level Up",
+                "🐛 Bug Squashed",
+                "🔧 Behind the Scenes",
+                "👥 MVP Contributors"
+            ]):
+                # If we have accumulated text, add it as a section block
+                if current_section_text.strip():
+                    blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": current_section_text.strip()
+                        }
+                    })
+                    # Add spacing between sections
+                    blocks.append({"type": "divider"})
+                    current_section_text = ""
+                
+                # Add the section header as a header block (bigger and bold)
+                header_text = section.replace('*', '').replace('#', '').strip()  # Remove existing formatting
+                blocks.append({
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": header_text,
+                        "emoji": True
+                    }
+                })
+            else:
+                # Accumulate text for the current section
+                if current_section_text:
+                    current_section_text += "\n\n" + section
+                else:
+                    current_section_text = section
+        
+        # Add any remaining text
+        if current_section_text.strip():
             blocks.append({
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": formatted_summary.strip()
+                    "text": current_section_text.strip()
                 }
             })
         

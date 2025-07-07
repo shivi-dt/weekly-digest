@@ -125,17 +125,18 @@ class ChunkedSummarizer:
 
 Write a short, engaging summary that reads like a brief update. Focus on:
 
-1. **What was accomplished** - Key changes and improvements
-2. **Business impact** - How this affects users or operations
-3. **Notable highlights** - Most important points
+1. **What was accomplished** - Key changes, improvements, and technical enhancements
+2. **Business impact** - How this affects users, operations, and system performance
+3. **Notable highlights** - Most important points including technical achievements
+4. **Technical details** - Relevant performance improvements, API changes, or system optimizations
 
 Keep it:
 - Simple and readable (like a newspaper article)
 - Concise (under 100 words)
-- Business-focused
-- Easy to scan
+- Business-focused with technical precision
+- Easy to scan while being technically informative
 
-Use clear, professional language. Avoid technical jargon.
+Use clear, professional language with appropriate technical terminology.
 
 When Linear data is available, use it for better context and include relevant Linear issue links."""
 
@@ -162,12 +163,12 @@ Write this as a short article or update, not a detailed report. Structure:
 2. **Key highlights** (3-4 bullet points) - Most important changes
 
 Requirements:
-- Keep it under 200 words total
-- Write in a conversational, article-style format
-- Focus on business impact and user benefits
+- Keep it under 250 words total
+- Write in a conversational, article-style format with technical precision
+- Focus on business impact, user benefits, and technical achievements
 - Include relevant Linear issue links where helpful
-- Make it easy to read quickly
-- Avoid technical jargon
+- Make it easy to read quickly while being technically informative
+- Use appropriate technical terminology and mention performance improvements
 
 Create a summary that reads like a brief newspaper article about the week's development progress."""
         
@@ -179,7 +180,7 @@ Create a summary that reads like a brief newspaper article about the week's deve
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a technical writer creating brief, engaging updates about software development progress. Write in a conversational, article-style format that's easy to read quickly. Focus on business impact and user benefits. Keep summaries concise and include relevant links. Avoid technical jargon and make it accessible to non-technical stakeholders."
+                            "content": "You are a technical writer creating brief, engaging updates about software development progress. Write in a conversational, article-style format with technical precision that's easy to read quickly. Focus on business impact, user benefits, and technical achievements. Keep summaries concise and include relevant links. Use appropriate technical terminology, mention performance improvements, and highlight system enhancements while remaining accessible to both technical and non-technical stakeholders."
                         },
                         {
                             "role": "user",
@@ -285,11 +286,11 @@ Write this as a short article or update, not a detailed report. Structure:
 
 Requirements:
 - Keep it under {max_words} words total
-- Write in a conversational, article-style format
-- Focus on business impact and user benefits
+- Write in a conversational, article-style format with technical precision
+- Focus on business impact, user benefits, and technical achievements
 - Include relevant Linear issue links where helpful
-- Make it easy to read quickly
-- Avoid technical jargon
+- Make it easy to read quickly while being technically informative
+- Use appropriate technical terminology and mention performance improvements
 
 Create a summary that reads like a brief newspaper article about the development progress."""
         
@@ -299,7 +300,7 @@ Create a summary that reads like a brief newspaper article about the development
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a technical writer creating brief, engaging updates about software development progress. Write in a conversational, article-style format that's easy to read quickly. Focus on business impact and user benefits. Keep summaries concise and include relevant links. Avoid technical jargon and make it accessible to non-technical stakeholders."
+                        "content": "You are a technical writer creating brief, engaging updates about software development progress. Write in a conversational, article-style format with technical precision that's easy to read quickly. Focus on business impact, user benefits, and technical achievements. Keep summaries concise and include relevant links. Use appropriate technical terminology, mention performance improvements, and highlight system enhancements while remaining accessible to both technical and non-technical stakeholders."
                     },
                     {
                         "role": "user",
