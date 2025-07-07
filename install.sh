@@ -56,5 +56,22 @@ echo ""
 echo "3. Run the tools:"
 echo "   python github_pr_analyzer.py DrivetrainAi/drive --send-to-slack"
 echo "   python chunked_summarizer.py document.txt"
+# Your original command (now works!)
+echo "python run_multi_repo_analysis.py DrivetrainAi/drive DrivetrainAi/tesseract DrivetrainAi/drive-frontend --send-to-slack"
+
+# With custom branches
+echo "python run_multi_repo_analysis.py DrivetrainAi/drive DrivetrainAi/tesseract --branches main-v3 develop"
+
+# With custom time range
+echo "python run_multi_repo_analysis.py DrivetrainAi/drive DrivetrainAi/tesseract --time-range 1m --send-to-slack"
+
+# With custom output files (will create separate files for each repo)
+echo "python run_multi_repo_analysis.py DrivetrainAi/drive DrivetrainAi/tesseract --output weekly_summary.md --send-to-slack"
+
+# Single repository (still works)
+echo "python run_multi_repo_analysis.py DrivetrainAi/drive --send-to-slack"
+
+# See all options
+echo "python run_multi_repo_analysis.py --help" 
 echo ""
 echo "📖 For more information, see README.md" 

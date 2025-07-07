@@ -102,23 +102,43 @@ class GitHubPRAnalyzer:
             self.linear_headers = None
     
     def get_time_range(self, time_range: str) -> Tuple[str, str]:
-        """Get start and end dates based on time range string."""
-        end_date = datetime.now(timezone.utc)
-        
+        """Get start and end dates based on time range string. For 1w, use the 7 days before today (not including today). For all other ranges, end_date is yesterday."""
+        now = datetime.now(timezone.utc)
+        today = now.date()
+        yesterday = today - timedelta(days=1)
         if time_range == '1w':
-            start_date = end_date - timedelta(weeks=1)
+            end_date = yesterday
+            start_date = end_date - timedelta(days=6)
+            start_date = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+            end_date = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
         elif time_range == '1m':
-            start_date = end_date - timedelta(days=30)
+            end_date = yesterday
+            start_date = end_date - timedelta(days=29)
+            start_date = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+            end_date = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
         elif time_range == '6m':
-            start_date = end_date - timedelta(days=180)
+            end_date = yesterday
+            start_date = end_date - timedelta(days=179)
+            start_date = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+            end_date = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
         elif time_range == '1y':
-            start_date = end_date - timedelta(days=365)
+            end_date = yesterday
+            start_date = end_date - timedelta(days=364)
+            start_date = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+            end_date = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
         elif time_range.startswith('custom:'):
-            start_date, end_date = self._parse_custom_time_range(time_range)
+            start_date, custom_end_date = self._parse_custom_time_range(time_range)
+            now_dt = datetime.combine(yesterday, datetime.max.time(), tzinfo=timezone.utc)
+            # If custom end date is in the future, use yesterday instead
+            if custom_end_date > now_dt:
+                end_date = now_dt
+            else:
+                end_date = custom_end_date
         else:
-            # Default to 1 week
+            end_date = yesterday
             start_date = end_date - timedelta(weeks=1)
-        
+            start_date = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+            end_date = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
         return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
     
     def _parse_custom_time_range(self, time_range: str) -> Tuple[datetime, datetime]:
@@ -444,22 +464,13 @@ class GitHubPRAnalyzer:
         }
     
     def _format_summary_with_links(self, summary: str, prs: List[Dict[str, Any]], repo: str) -> str:
-        """Format summary with PR links instead of commit details."""
-        # Extract PR numbers from summary
-        pr_numbers = re.findall(r'#(\d+)', summary)
+        """Format summary so that only the PR number is a clickable link (e.g., #3666)."""
+        # Replace all #<number> with Slack links
+        def pr_link_replacer(match):
+            pr_num = match.group(1)
+            return f"<https://github.com/{repo}/pull/{pr_num}|#{pr_num}>"
         
-        # Create PR links (just PR numbers as custom links)
-        pr_links = []
-        for pr_num in pr_numbers:
-            pr_link = f"<https://github.com/{repo}/pull/{pr_num}|#{pr_num}>"
-            pr_links.append(pr_link)
-        
-        # Replace PR numbers with links
-        formatted_summary = summary
-        for i, pr_num in enumerate(pr_numbers):
-            if i < len(pr_links):
-                formatted_summary = formatted_summary.replace(f"#{pr_num}", pr_links[i])
-        
+        formatted_summary = re.sub(r'#(\d+)', pr_link_replacer, summary)
         return formatted_summary
 
     def create_summary_prompt(self, prs: List[Dict[str, Any]], time_range: str) -> str:
@@ -473,56 +484,44 @@ class GitHubPRAnalyzer:
                 grouped[branch] = []
             grouped[branch].append(pr)
         
-        prompt = f"""Create an exciting weekly digest of {len(prs)} Pull Requests that shipped to production! 🚀
+        prompt = f"""Create an exciting weekly digest of {len(prs)} Pull Requests that shipped to production!
 
 This is our weekly development roundup - make it engaging and fun to read while highlighting the impact.
 
-Structure the digest with these exciting sections with these headings in Bold Lettters:
+Structure the digest with these exciting sections with these headings in Bold Letters:
 
-1. ## 📊 This Week's Highlights - A punchy 2-3 sentence overview of what we accomplished
+1. ## This Week's Highlights - In 1-2 short, specific sentences, no. of prs merged,summarize the most important concrete achievements. Do not use emojis or generic praise.
 2. ## 🚀 What's New - Fresh features that users will love (1-2 items max)
 3. ## ⚡ Level Up - Cool improvements that make things better (2-3 items max)
 4. ## 🐛 Bug Squashed - Issues we conquered (2-3 items max)
 5. ## 🔧 Behind the Scenes - Technical wins that keep things running smoothly (1-2 items max)
-6. ## 👥 MVP Contributors - Shoutout to the rockstars who made it happen (top 3-4)
 
 Make it:
 - 🎉 Exciting and celebratory tone with technical precision
 - 📝 Concise but impactful (under 250 words)
 - 🎯 Focus on user benefits, business wins, and technical achievements
-- 🔗 Include PR links for easy reference
 - 💪 Use action words, positive language, and technical terminology
 - 🏆 Highlight achievements, performance improvements, and system enhancements
 - 📏 Add a blank line between each section for better readability
 - 🔬 Include relevant technical details (APIs, databases, performance metrics, etc.)
 - 📊 Mention specific improvements (latency reduction, throughput increase, etc.)
 - 🛡️ Reference security, scalability, or reliability improvements where applicable
+- Do not use emojis or generic praise in the Highlights section. Be specific and concrete.
+- Do not include a summary line with PR numbers or links at the end of the digest.
 
 Think of this as a weekly newsletter that gets the team pumped about what we built!
 
 Technical Enhancement Tips:
-- Mention specific performance improvements (e.g., "reduced API response time by 40%")
-- Reference database optimizations, caching improvements, or scalability enhancements
-- Include security updates, authentication improvements, or compliance changes
-- Highlight API versioning, endpoint additions, or integration improvements
-- Mention monitoring, logging, or observability enhancements
-- Reference infrastructure improvements, deployment optimizations, or CI/CD changes
+- Mention specific performance improvements if any.(e.g., "reduced API response time by 40%")
+- Reference database optimizations, caching improvements, or scalability enhancements if any.
+- Include security updates, authentication improvements, or compliance changes if any.
+- Highlight API versioning, endpoint additions, or integration improvements if any.
+- Mention monitoring, logging, or observability enhancements if any.
+- Reference infrastructure improvements, deployment optimizations, or CI/CD changes if any.
+- Dont provide false information.
 
-PR Details:
-"""
-        
-        for branch, branch_prs in grouped.items():
-            prompt += f"\n## {branch.upper()} ({len(branch_prs)} PRs)\n"
-            for pr in branch_prs[:8]:  # Top 8 per branch for better categorization
-                author = pr.get('user', {}).get('login', 'unknown') if isinstance(pr.get('user'), dict) else 'unknown'
-                prompt += f"- #{pr['number']}: {pr['title']} (by {author})\n"
-            
-            if len(branch_prs) > 8:
-                prompt += f"- ... and {len(branch_prs) - 8} more\n"
-        
-        prompt += """
 
-Analyze the PR titles and descriptions to categorize them properly. Focus on what each change means for users and the business. Create an exciting digest that celebrates our team's achievements!
+Analyze the PR titles, CodeRabbit comments in PRs, descriptions, Linear issues linked to them to categorize them properly. Focus on what each change means for users and the business. Create an exciting digest that celebrates our team's achievements!
 """
         return prompt
     
@@ -847,18 +846,24 @@ class SlackClient:
         
         return formatted.strip()
     
-    def create_slack_blocks(self, summary: str, pr_count: int, time_range: str, repo: str) -> List[Dict[str, Any]]:
+    def create_slack_blocks(self, summary: str, pr_count: int, time_range: str, repo: str, start_date=None, end_date=None, mvp_contributors=None) -> List[Dict[str, Any]]:
         """Create properly formatted Slack blocks."""
-        # Format the summary for Slack
         formatted_summary = self.format_for_slack(summary)
-        
+        # Build time range string
+        if start_date and end_date:
+            time_range_str = f"Range: {start_date} to {end_date}"
+        else:
+            time_range_str = f"Time range: {time_range}"
+        # Build MVP string
+        mvp_str = ""
+        if mvp_contributors:
+            mvp_str = f"MVPs: {', '.join(mvp_contributors)}"
         blocks = [
             {
-                "type": "header",
+                "type": "section",
                 "text": {
-                    "type": "plain_text",
-                    "text": f"🚀 Weekly Development Digest - {repo}",
-                    "emoji": True
+                    "type": "mrkdwn",
+                    "text": f"*🚀 Weekly-Digest/{repo.split('/')[-1]}*"
                 }
             },
             {
@@ -866,8 +871,9 @@ class SlackClient:
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": f"🎉 {pr_count} awesome changes shipped this week! | 📅 {time_range} | ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}"
-                    }
+                        "text": f"Range: {time_range_str}"
+                    },
+                    *([{ "type": "mrkdwn", "text": mvp_str }] if mvp_str else [])
                 ]
             },
             {
@@ -888,12 +894,11 @@ class SlackClient:
             # Remove formatting and check for header content
             section_clean = section.replace('*', '').replace('#', '').strip()
             if any(header in section_clean for header in [
-                "📊 This Week's Highlights",
-                "🚀 What's New", 
-                "⚡ Level Up",
-                "🐛 Bug Squashed",
-                "🔧 Behind the Scenes",
-                "👥 MVP Contributors"
+                "*📊 This Week's Highlights*",
+                "*🚀 What's New*", 
+                "*⚡ Level Up*",
+                "*🐛 Bug Squashed*",
+                "*🔧 Behind the Scenes*"
             ]):
                 # If we have accumulated text, add it as a section block
                 if current_section_text.strip():
@@ -904,18 +909,23 @@ class SlackClient:
                             "text": current_section_text.strip()
                         }
                     })
-                    # Add spacing between sections
-                    blocks.append({"type": "divider"})
+                    # Add 1-line gap between sections
+                    blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": " "
+                        }
+                    })
                     current_section_text = ""
                 
-                # Add the section header as a header block (bigger and bold)
-                header_text = section.replace('*', '').replace('#', '').strip()  # Remove existing formatting
+                # Add the section header as a bold section block (mrkdwn)
+                header_text_bold = f"*{section.replace('*', '').replace('#', '').strip()}*"
                 blocks.append({
-                    "type": "header",
+                    "type": "section",
                     "text": {
-                        "type": "plain_text",
-                        "text": header_text,
-                        "emoji": True
+                        "type": "mrkdwn",
+                        "text": header_text_bold
                     }
                 })
             else:
@@ -1040,11 +1050,12 @@ class SlackClient:
             print(f"❌ Error sending fallback message: {e}")
             return False
     
-    def send_pr_summary(self, summary: str, pr_count: int, time_range: str, repo: str) -> bool:
+    def send_pr_summary(self, summary: str, pr_count: int, time_range: str, repo: str, start_date=None, end_date=None, mvp_contributors=None) -> bool:
         """Send PR summary to Slack with proper formatting."""
-        # Create properly formatted Slack blocks
-        blocks = self.create_slack_blocks(summary, pr_count, time_range, repo)
-        
+        blocks = self.create_slack_blocks(
+            summary, pr_count, time_range, repo,
+            start_date=start_date, end_date=end_date, mvp_contributors=mvp_contributors
+        )
         return self.send_message(blocks)
     
     def send_error_notification(self, error_message: str, repo: str) -> bool:
@@ -1053,9 +1064,8 @@ class SlackClient:
             {
                 "type": "header",
                 "text": {
-                    "type": "plain_text",
-                    "text": "❌ Development Summary Generation Failed",
-                    "emoji": True
+                    "type": "mrkdwn",
+                    "text": "*❌ Development Summary Generation Failed*"
                 }
             },
             {
@@ -1172,13 +1182,22 @@ def main() -> None:
         if args.interactive or not time_range:
             time_range = get_user_time_range()
         
+        # Get start and end date for display
+        start_date, end_date = analyzer.get_time_range(time_range)
+
         print(f"\n🚀 Analyzing PRs from {args.repo}")
         print(f"📅 Time range: {time_range}")
         print(f"🌿 Branches: {', '.join(args.branches)}")
         
         # Fetch PRs
         prs = analyzer.fetch_prs(args.repo, args.branches, time_range)
-        
+
+        # Debug: Print PRs fetched
+        print("Fetched PRs:")
+        for pr in prs:
+            author = analyzer._get_pr_author(pr)
+            print(f"  PR #{pr['number']} by {author} merged at {pr.get('merged_at')}")
+
         if not prs:
             message = "No PRs found in the specified time range."
             print(f"❌ {message}")
@@ -1188,16 +1207,21 @@ def main() -> None:
         
         print(f"✅ Found {len(prs)} PRs")
         
+        # Calculate MVP contributors
+        stats = analyzer._extract_statistics(prs)
+        mvp_contributors = [author for author, _ in stats.get('top_authors', [])[:4]]
+
         # Generate summary
         summary = analyzer.generate_beautiful_summary(prs, time_range)
-        
+
         # Format summary with PR links
-        formatted_summary = analyzer._format_summary_with_links(summary, prs, args.repo)
-        
+        # formatted_summary = analyzer._format_summary_with_links(summary, prs, args.repo)
+        formatted_summary = summary
+
         # Count PRs for stats
         pr_matches = re.findall(r'#(\d+)', summary)
         pr_count = len(set(pr_matches))
-        
+
         # Save to file
         if args.output:
             analyzer.save_summary(formatted_summary, args.output)
@@ -1205,13 +1229,16 @@ def main() -> None:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             default_filename = f"development_summary_{timestamp}.md"
             analyzer.save_summary(formatted_summary, default_filename)
-        
+
         # Print to console
         analyzer.print_summary(formatted_summary)
-        
+
         # Send to Slack if requested
         if args.send_to_slack:
-            success = slack_client.send_pr_summary(formatted_summary, pr_count, time_range, args.repo)
+            success = slack_client.send_pr_summary(
+                formatted_summary, pr_count, time_range, args.repo,
+                start_date=start_date, end_date=end_date, mvp_contributors=mvp_contributors
+            )
             if not success:
                 print("⚠️ Failed to send to Slack, but summary was generated successfully")
         
